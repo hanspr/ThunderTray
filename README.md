@@ -12,14 +12,17 @@ Unzip. Copy : thundertray.pl to any directory you like
 
 ### Prerequisites
 
-Mozilla::Mork;
-Glib
-Gtk2
-Gtk2::TrayIcon
-MIME::Base64
-GD
-xdotool
-x11-utils
+* Linux
+* Perl Libraries
+  * Mozilla::Mork;
+  * Glib
+  * Gtk2
+  * Gtk2::TrayIcon
+  * MIME::Base64
+  * GD
+* System
+  * xdotool
+  * x11-utils
 
 ### Installing
 
