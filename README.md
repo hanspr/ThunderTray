@@ -35,6 +35,12 @@ cp thundertray.pl ~/
 ```
 **Recomendations**
 * Disable any active tray extension in Thunderbird.
+* Because application is not running inside Thunderbird, it has no control over the Close window Button. To minimize: click always on the Tray icon
+* Tray Icon states
+  * Thunderbird icon normal : No email, window is not minimized
+  * Thunderbird icon dimmed : Thunderbird is minimized
+  * A number : quantity on unread messages in INBOX (other boxes are not taken into account)
+  * Thunderbird dimmed and red X : Thunderbird is closed. To start again, click in Tray Icon.
 
 ## To test
 
