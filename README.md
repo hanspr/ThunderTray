@@ -76,6 +76,23 @@ $DEBUG = 0; # 0 - No, 1-Debug, 2-Debug and stop on email count
 * $MSEC
   * Check for new emails every milliseconds, default 1,000 = 1 second . Every cycle, creates an access to your hard drive, if it is to intense, increase to 1500 or 2000. If you use an SSD drive, it could be reduced, but I do not recommend, 1 second gives a good responde time.
 
+##Known Issues
+
+* Icons have no transparency. Sorry, tray icon libraries in Perl are old. You may edit icons included to fit your toolbar background color.
+
+```
+After modifying the incons, execute in terminal.
+
+base64 -w 0 iconname.png
+
+Copy the long string
+Paste in code in subroutine build_start.
+Substitute the string depending on the correct state:
+* tbrd : Normal
+* tbrdwm : Thunderbird minimized
+* tbrdwmx : Thunderbird closed
+```
+
 ## Authors
 
 * **Hans Peyrot**
