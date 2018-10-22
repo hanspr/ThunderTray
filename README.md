@@ -1,4 +1,4 @@
-# Project Title
+# ThunderTray
 
 No extension, Minimize to Tray Thunderbird
 
