@@ -8,13 +8,14 @@ use Gtk2::TrayIcon;
 use MIME::Base64;
 use GD;
 
-our (%icon,$icon,$eventbox,$trayicon,$tooltip,$NEW,$DIR,$FONT,$FONT_PATH,$TBW,$OFFSET,$emailchk,$MSEC,$IGNORE_CLICK,$DEBUG);
+our (%icon,$icon,$eventbox,$trayicon,$tooltip,$NEW,$DIR,$FONT,$FONT_PATH,$TBW,$OFFSET,$emailchk,$MSEC,$IGNORE_CLICK,$DEBUG,$SCAN_ALL);
 
 # Begin Constants: Edit if auto setup does not work for you
 $DIR = "";      #/home/MIUSER/.thunderbird/PROFILE.default;
 $FONT_PATH =""; #/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf
 $OFFSET = 0;
 $MSEC = 1000;
+$SCAN_ALL = 0;  #0 - Only INBOX, 1 - All boxes found
 $DEBUG = 0; # 0 - No, 1-Debug, 2-Debug and stop on email count
 # End Constants
 
@@ -164,28 +165,32 @@ sub exit_it {
 }
 
 sub ReadBoxes {
-	my ($dir) =@_;
+	my ($dir,$depth) =@_;
 	my ($BOXES,$box,$count,$MorkDetails,$results,$r);
 
-	if ($DEBUG) {print "Abrir : $dir\n";}
+	if ((!$SCAN_ALL)&&($depth>1)) {
+		return 0;
+	}
 	$count=0;
 	opendir($BOXES,$dir);
 	while ($box = readdir($BOXES)) {
 		if ($box =~ /^\./) {
 			next;
-		} elsif ($box =~ /INBOX\.msf/i) {
+		} elsif (($box =~ /INBOX\.msf/i)||(($SCAN_ALL)&&($box =~ /\.msf$/))) {
+			if ($DEBUG) {print "Process : $dir/$box\n";}
 			$MorkDetails = Mozilla::Mork->new("$dir/$box");
 			$results = $MorkDetails->ReturnReferenceStructure();
 			foreach $r (@$results) {
-				if ($DEBUG) {
-					foreach my $k (sort keys %$r) {
-						if ($DEBUG) {print "  :: $k=$$r{$k}\n";}
-	    			}
-				}
+#				if ($DEBUG==2) {foreach my $k (sort keys %$r) {print "  :: $k=$$r{$k}\n";}}
 				$count += $$r{'unreadChildren'};
 			}
+			if (!$SCAN_ALL) {
+				last;
+			}
 		} elsif (-d "$dir/$box") {
-			$count += ReadBoxes("$dir/$box")
+			$depth++;
+			$count += ReadBoxes("$dir/$box",$depth);
+			$depth--;
 		}
 	}
 	if ($DEBUG) {print "  Unread $dir : $count\n";}
@@ -246,7 +251,6 @@ sub setTBW {
 			$TBW=0;
 			system "thunderbird &> /dev/null";
 			$IGNORE_CLICK=0;
-#			$NEW=-1;
 			$r=1;
 			$icon->set_from_pixbuf($icon{'tbrd'});
 		} else {

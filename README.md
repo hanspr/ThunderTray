@@ -65,6 +65,7 @@ $DIR = "";      #/home/MIUSER/.thunderbird/PROFILE.default
 $FONT_PATH =""; #/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf
 $OFFSET = 0;
 $MSEC = 1000;
+$SCAN_ALL = 0;
 $DEBUG = 0; # 0 - No, 1-Debug, 2-Debug and stop on email count
 ```
 * $DIR
@@ -73,6 +74,8 @@ $DEBUG = 0; # 0 - No, 1-Debug, 2-Debug and stop on email count
   * If you want a specific Font to be used for the email numbers that show in the tray Icon
 * $OFFSET
   * If you have been creating and deleting email accounts and the old folders were not deleted. You may see more messages from those old directories. Your best option is to remove those directories, or add an offset to the count, example: -1
+* $SCAN_ALL
+  * 0 - Scan only main INBOX. 1 - Scan all mail boxes available
 * $MSEC
   * Check for new emails every milliseconds, default 1,000 = 1 second . Every cycle, creates an access to your hard drive, if it is to intense, increase to 1500 or 2000. If you use an SSD drive, it could be reduced, but I do not recommend, 1 second gives a good responde time.
 
