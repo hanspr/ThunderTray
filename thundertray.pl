@@ -8,7 +8,7 @@ use Gtk2::TrayIcon;
 use MIME::Base64;
 use GD;
 
-our (%icon,$icon,$eventbox,$trayicon,$tooltip,$NEW,$DIR,$FONT,$FONT_PATH,$TBW,$OFFSET,$emailchk,$MSEC,$IGNORE_CLICK,$DEBUG,$SCAN_ALL);
+our (%icon,$icon,$eventbox,$trayicon,$tooltip,$NEW,$DIR,$FONT,$FONT_PATH,$TBW,$OFFSET,$emailchk,$MSEC,$IGNORE_CLICK,$DEBUG,$SCAN_ALL,$IGNORE_BOXES);
 
 # Begin Constants: Edit if auto setup does not work for you
 $DIR = "";      #/home/MIUSER/.thunderbird/PROFILE.default;
@@ -16,7 +16,8 @@ $FONT_PATH =""; #/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf
 $OFFSET = 0;
 $MSEC = 1000;
 $SCAN_ALL = 0;  #0 - Only INBOX, 1 - All boxes found
-$DEBUG = 0; # 0 - No, 1-Debug, 2-Debug and stop on email count
+$IGNORE_BOXES = "trash,spam,template,draft,junk,deleted,local"; # Comma separated list of words to use to ignore those names in boxes, is applied to the full path of the box
+$DEBUG = 0; # 0-No debug, 1-Debug, 2-Debug and stop after scanning boxes
 # End Constants
 
 $NEW = -1;
@@ -25,7 +26,7 @@ $icon     = Gtk2::Image->new_from_pixbuf($icon{'tbrdwm'});
 $eventbox = Gtk2::EventBox->new;
 $eventbox->add($icon);
 $eventbox->signal_connect( 'button_press_event', \&click );
-$trayicon = Gtk2::TrayIcon->new('Tbird Email');
+$trayicon = Gtk2::TrayIcon->new('ThunderTray');
 $trayicon->add($eventbox);
 $tooltip = Gtk2::Tooltips->new;
 $trayicon->show_all;
@@ -54,11 +55,12 @@ sub CheckMail {
 	open OLDER, ">&STDERR";
 	open(STDERR,"> /dev/null");
 	$new += ReadBoxes("$DIR/ImapMail");
+	# Check POP3 Folders
 	$new += ReadBoxes("$DIR/Mail");
 	open STDERR, ">&OLDER";
 	if ($DEBUG==2){print "NEW=$new\nFIN\n";exit 0;}
 	if ($new!=$NEW) {
-		# Set Tray Icon number off messages
+		# Set Tray Icon number of messages
 		if ($new==0) {
 			my $map = `xwininfo -id $TBW | grep 'IsViewable'`;
 			if ($map) {
@@ -156,9 +158,13 @@ sub pop_menu {
 }
 
 sub exit_it {
-	my $map = `xwininfo -id $TBW | grep 'IsViewable'`;
-	if (!$map) {
-		system "xdotool windowmap $TBW";
+	my ($map);
+
+	if ($TBW) {
+		$map = `xwininfo -id $TBW | grep 'IsViewable'`;
+		if (!$map) {
+			system "xdotool windowmap $TBW";
+		}
 	}
 	Gtk2->main_quit;
 	return 0;
@@ -177,6 +183,10 @@ sub ReadBoxes {
 		if ($box =~ /^\./) {
 			next;
 		} elsif (($box =~ /INBOX\.msf/i)||(($SCAN_ALL)&&($box =~ /\.msf$/))) {
+			if (($SCAN_ALL)&&($IGNORE_BOXES)&&("$dir/$box" =~ /$IGNORE_BOXES/i)) {
+				if ($DEBUG) {print "Ignored $IGNORE_BOXES : $dir/$box\n";}
+				next;
+			}
 			if ($DEBUG) {print "Process : $dir/$box\n";}
 			$MorkDetails = Mozilla::Mork->new("$dir/$box");
 			$results = $MorkDetails->ReturnReferenceStructure();
@@ -214,6 +224,9 @@ sub build_start {
 	if ((!$FONT_PATH)&&(-e "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf")) {
 		$FONT_PATH ="/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf";
 	}
+	if ($IGNORE_BOXES) {
+		$IGNORE_BOXES =~ s/,/\|/g;
+	}
 	setTBW(1);
 	findUserDIR();
 }
@@ -228,6 +241,7 @@ sub findUserDIR {
 	while ($fn = readdir($dirh)) {
 		if ($fn =~ /\.default$/) {
 			$DIR = "$ENV{'HOME'}/.thunderbird/$fn";
+			last;
 		}
 	}
 	closedir($dirh);
