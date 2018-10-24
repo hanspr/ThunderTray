@@ -1,5 +1,6 @@
 #!/usr/bin/perl
 
+no warnings 'once';
 use utf8;
 use Mozilla::Mork;
 use Glib qw/TRUE FALSE/;
@@ -9,6 +10,7 @@ use MIME::Base64;
 use GD;
 
 our (%icon,$icon,$eventbox,$trayicon,$tooltip,$NEW,$DIR,$FONT,$FONT_PATH,$TBW,$OFFSET,$emailchk,$MSEC,$IGNORE_CLICK,$DEBUG,$SCAN_ALL,$IGNORE_BOXES);
+our ($LSTATUS,%KCOUNT,%LSTAT);
 
 # Begin Constants: Edit if auto setup does not work for you
 $DIR = "";      #/home/MIUSER/.thunderbird/PROFILE.default;
@@ -16,7 +18,7 @@ $FONT_PATH =""; #/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf
 $OFFSET = 0;
 $MSEC = 1000;
 $SCAN_ALL = 0;  #0 - Only INBOX, 1 - All boxes found
-$IGNORE_BOXES = "trash,spam,template,draft,junk,deleted,local"; # Comma separated list of words to use to ignore those names in boxes, is applied to the full path of the box
+$IGNORE_BOXES = "sent,trash,spam,template,draft,junk,deleted,local"; # Comma separated list of words to use to ignore those names in boxes, is applied to the full path of the box
 $DEBUG = 0; # 0-No debug, 1-Debug, 2-Debug and stop after scanning boxes
 # End Constants
 
@@ -36,21 +38,6 @@ Gtk2->main;
 sub CheckMail {
 	my (@mails,%IDS,$id,$status,$new,$lmt,$x);
 
-	$x = `xdotool search --name 'Mozilla Thunderbird'`;
-	chop$x;
-	if ((!$x)||(!$TBW)||($IGNORE_CLICK)) {
-		if (!$x) {
-			select(undef, undef, undef, 0.25);
-			$x = `xdotool search --name 'Mozilla Thunderbird'`;
-			chop$x;
-		}
-		if (!$x) {
-			$icon->set_from_pixbuf($icon{'tbrdwmx'});
-			return 1;
-		} elsif ((!$TBW)||($TBW!=$x)) {
-			$TBW = $x;
-		}
-	}
 	# Check IMAP Folders
 	open OLDER, ">&STDERR";
 	open(STDERR,"> /dev/null");
@@ -58,40 +45,14 @@ sub CheckMail {
 	# Check POP3 Folders
 	$new += ReadBoxes("$DIR/Mail");
 	open STDERR, ">&OLDER";
-	if ($DEBUG==2){print "NEW=$new\nFIN\n";exit 0;}
 	if ($new!=$NEW) {
 		# Set Tray Icon number of messages
-		if ($new==0) {
-			my $map = `xwininfo -id $TBW | grep 'IsViewable'`;
-			if ($map) {
-				$icon->set_from_pixbuf($icon{'tbrd'});
-			} else {
-				$icon->set_from_pixbuf($icon{'tbrdwm'});
-			}
-			$tooltip->set_tip($trayicon,"No mail");
-		} else {
-			my ($x);
-			my $pt = 12;
-			if (length($new)>2) {$pt=9;}
-			my $img = new GD::Image(24,24);
-			my $w = $img->colorAllocate(255,255,255);
-			my $b = $img->colorAllocate(0,0,0);
-			$img->fillToBorder(0,0,$w,$w);
-			$x = int(12-(length($new)*$pt)/2);
-			if ($x < 0) { $x = 0; }
-			if ($FONT_PATH) {
-				$img->stringFT($b,$FONT_PATH,$pt,0,$x,18,$new);
-			} else {
-				$img->string(gdGiantFont,$x,5,$new,$b);
-			}
-			my $loader = Gtk2::Gdk::PixbufLoader->new();
-			$loader->write($img->png);
-			$loader->close();
-			$icon->set_from_pixbuf($loader->get_pixbuf());
-			$tooltip->set_tip($trayicon,"You got mail!");
-		}
+		setStatus($new,1);
 		$NEW = $new;
+	} else {
+		setStatus($new,0);
 	}
+	if ($DEBUG){print "NEW=$new\n";if ($DEBUG==2){exit 0;}}
 	return 1;
 }
 
@@ -101,37 +62,28 @@ sub click {
 	if ($_[ 1 ]->button == 1) {
 		#left mouse button
 		if ($IGNORE_CLICK) {
+			# Ignore clicks until Thunderbird starts
 			return 1;
 		}
-		$start = setTBW();
-		if ($start) {
-			# Thunderbir was started ignore this click
-			return 1;
-		}
-		$map = `xwininfo -id $TBW | grep 'IsViewable'`;
-		$hidden = `xwininfo -all -id $TBW | grep 'Hidden'`;
-		if (($map)&&($hidden)) {
-			# Show
-			system "xdotool windowactivate $TBW";
-			if ($NEW==0) {
+		if ($LSTATUS eq 'C') {
+			# Thunderbird is closed, Start
+			$IGNORE_CLICK = 1;
+			system "thunderbird & > /dev/null";
+			$IGNORE_CLICK = 0;
+		} elsif ($LSTATUS eq 'V') {
+			# Is Visible, focus or hide
+			$hidden = `xwininfo -all -id $TBW | grep 'Hidden'`;
+			if ($hidden) {
+				system "xdotool windowactivate $TBW";
 				$icon->set_from_pixbuf($icon{'tbrd'});
-			}
-		} elsif ($map) {
-			# Hide
-			system "xdotool windowunmap $TBW";
-			if ($NEW==0) {
-				$icon->set_from_pixbuf($icon{'tbrdwm'});
+			} else {
+				system "xdotool windowunmap $TBW";
 			}
 		} else {
 			# Unhide
 			system "xdotool windowmap $TBW";
-			if ($NEW==0) {
-				$icon->set_from_pixbuf($icon{'tbrd'});
-			}
-			if ($hidden) {
-				system "xdotool windowactivate $TBW";
-			}
 		}
+		setStatus($NEW,0);
 	} elsif ($_[ 1 ]->button == 2) {
 		#middle mouse button
 	} elsif ($_[ 1 ]->button == 3) {
@@ -154,7 +106,7 @@ sub pop_menu {
 	$menu->add($menu_quit);
 	$menu->show_all;
 	$menu->popup(undef,undef,undef,undef,0,0);
-	return 1;
+	return 0;
 }
 
 sub exit_it {
@@ -170,11 +122,80 @@ sub exit_it {
 	return 0;
 }
 
+sub setStatus {
+	my ($new,$chk) = @_;
+	my ($open,$map,$status);
+
+	$open = `xdotool search --name 'Mozilla Thunderbird'`;
+	chop $open;
+	if ((!$open)||(!$TBW)||($IGNORE_CLICK)) {
+		if (!$open) {
+			select(undef, undef, undef, 0.25);
+			$open = `xdotool search --name 'Mozilla Thunderbird'`;
+			chop $open;
+		}
+		if (!$open) {
+			$status = "C";
+			$TBW = 0;
+		} elsif ((!$TBW)||($TBW!=$open)) {
+			$TBW = $open;
+		}
+	}
+	if ($TBW) {
+		$map = `xwininfo -id $TBW | grep 'IsViewable'`;
+		if ($map) {
+			$status = "V";
+		} else {
+			$status = "H";
+		}
+	}
+	if (($LSTATUS eq $status)&&(!$chk)) {
+		return 0;
+	}
+	if ($DEBUG) {print "STATUS CHANGE : $LSTATUS -> $status / $chk / $new\n";}
+	$LSTATUS = $status;
+	if ($new == 0) {
+		if ($status eq 'V') {
+			$icon->set_from_pixbuf($icon{'tbrd'});
+		} elsif ($status eq 'H') {
+			$icon->set_from_pixbuf($icon{'tbrdwm'});
+		} elsif ($status eq 'C') {
+			$icon->set_from_pixbuf($icon{'tbrdwmx'});
+		}
+		$tooltip->set_tip($trayicon,"No mail");
+	} else {
+		my ($x,$img,$w,$b,$loader);
+		my $pt = 12;
+		if (length($new)>2) {$pt=9;}
+		$img = new GD::Image(24,24);
+		$w = $img->colorAllocate(255,255,255);
+		if ($status eq 'C') {
+			$b = $img->colorAllocate(255,0,0);
+		} else {
+			$b = $img->colorAllocate(0,0,0);
+		}
+		$img->fillToBorder(0,0,$w,$w);
+		$x = int(12-(length($new)*$pt)/2);
+		if ($x < 0) { $x = 0; }
+		if ($FONT_PATH) {
+			$img->stringFT($b,$FONT_PATH,$pt,0,$x,18,$new);
+		} else {
+			$img->string(gdGiantFont,$x,5,$new,$b);
+		}
+		$loader = Gtk2::Gdk::PixbufLoader->new();
+		$loader->write($img->png);
+		$loader->close();
+		$icon->set_from_pixbuf($loader->get_pixbuf);
+		$tooltip->set_tip($trayicon,"You got mail!");
+	}
+}
+
 sub ReadBoxes {
-	my ($dir,$depth) =@_;
+	my ($dir,$depth) = @_;
 	my ($BOXES,$box,$count,$MorkDetails,$results,$r);
 
 	if ((!$SCAN_ALL)&&($depth>1)) {
+		# If not scan all, don't go deeper
 		return 0;
 	}
 	$count=0;
@@ -184,15 +205,25 @@ sub ReadBoxes {
 			next;
 		} elsif (($box =~ /INBOX\.msf/i)||(($SCAN_ALL)&&($box =~ /\.msf$/))) {
 			if (($SCAN_ALL)&&($IGNORE_BOXES)&&("$dir/$box" =~ /$IGNORE_BOXES/i)) {
-				if ($DEBUG) {print "Ignored $IGNORE_BOXES : $dir/$box\n";}
+				if ($DEBUG) {print "Ignored : $dir/$box\n";}
 				next;
 			}
-			if ($DEBUG) {print "Process : $dir/$box\n";}
-			$MorkDetails = Mozilla::Mork->new("$dir/$box");
-			$results = $MorkDetails->ReturnReferenceStructure();
-			foreach $r (@$results) {
-#				if ($DEBUG==2) {foreach my $k (sort keys %$r) {print "  :: $k=$$r{$k}\n";}}
-				$count += $$r{'unreadChildren'};
+			# Check size and timestamp of current BOX
+			if ($DEBUG) {print qq|Process : $dir/$box\n|;}
+			my @stats = stat("$dir/$box");
+			if ($LSTAT{"$dir$box"} eq "$stats[7]$stats[9]") {
+				if ($DEBUG) {print qq|  No CHANGE : $KNOUNT{"$dir$box"}\n|;}
+				$count += $KNOUNT{"$dir$box"};
+			} else {
+				if ($DEBUG) {print "  Read BOX\n";}
+				$LSTAT{"$dir$box"} = "$stats[7]$stats[9]";
+				$MorkDetails = Mozilla::Mork->new("$dir/$box");
+				$results = $MorkDetails->ReturnReferenceStructure();
+				foreach $r (@$results) {
+	#				if ($DEBUG==2) {foreach my $k (sort keys %$r) {print "  :: $k=$$r{$k}\n";}}
+					$count += $$r{'unreadChildren'};
+				}
+				$KNOUNT{"$dir$box"} = $count;
 			}
 			if (!$SCAN_ALL) {
 				last;
@@ -203,7 +234,8 @@ sub ReadBoxes {
 			$depth--;
 		}
 	}
-	if ($DEBUG) {print "  Unread $dir : $count\n";}
+	closedir($BOXES);
+	if ($DEBUG) {print "  New in $dir : $count\n";}
 	return $count;
 }
 
@@ -227,7 +259,7 @@ sub build_start {
 	if ($IGNORE_BOXES) {
 		$IGNORE_BOXES =~ s/,/\|/g;
 	}
-	setTBW(1);
+	setTBW();
 	findUserDIR();
 }
 
@@ -251,48 +283,26 @@ sub findUserDIR {
 }
 
 sub setTBW {
-	my $unmap = shift;
 	my ($x,$exit);
 	my $r = 0;
 
-	# Find Thunderbird Window ID
-	if ($TBW) {
-		$x = `xdotool search --name 'Mozilla Thunderbird'`;
-		chop$x;
-		if (!$x) {
-			# Is not running, start. FIND new window, recheck emails
-			$IGNORE_CLICK=1;
-			$TBW=0;
-			system "thunderbird &> /dev/null";
-			$IGNORE_CLICK=0;
-			$r=1;
-			$icon->set_from_pixbuf($icon{'tbrd'});
-		} else {
-			$TBW = $x;
-			return 0;
-		}
-	}
-	# Start Up script, wait until found and start minimized to tray
+	# Start Up script, wait 10 seonds or until found and start minimized to tray
+	$exit = 0;
 	while (!$TBW) {
 		$x = `xdotool search --name 'Mozilla Thunderbird'`;
-		chop$x;
+		chop $x;
 		if ($x) {
 			$TBW = $x;
-			if ($unmap) {
-				select(undef, undef, undef, 0.25);
-				system "xdotool windowunmap --sync $TBW";
-			} else {
-				$icon->set_from_pixbuf($icon{'tbrd'});
-			}
+			select(undef, undef, undef, 0.25);
+			system "xdotool windowunmap --sync $TBW";
 			system "xdotool windowsize $TBW 100% 100%";
 			last;
-		}
-		if ($exit>120) {
+		} elsif ($exit>40) {
 			# Could not be found, aborted
 			last;
 		}
 		$exit++;
 		select(undef, undef, undef, 0.25);
 	}
-	return $r;
+	return 0;
 }
