@@ -10,16 +10,16 @@ use MIME::Base64;
 use GD;
 
 our (%icon,$icon,$eventbox,$trayicon,$tooltip,$NEW,$DIR,$FONT,$FONT_PATH,$TBW,$OFFSET,$emailchk,$MSEC,$IGNORE_CLICK,$DEBUG,$SCAN_ALL,$IGNORE_BOXES);
-our ($LSTATUS,%KCOUNT,%LSTAT);
+our ($LSTATUS,%KCOUNT,%LSTAT,@INBOX);
 
 # Begin Constants: Edit if auto setup does not work for you
-$DIR = "";      #/home/MIUSER/.thunderbird/PROFILE.default;
+$DIR = "";      #/home/MYUSER/.thunderbird/PROFILE.default;
 $FONT_PATH =""; #/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf
 $OFFSET = 0;
 $MSEC = 1000;
 $SCAN_ALL = 0;  #0 - Only INBOX, 1 - All boxes found
 $IGNORE_BOXES = "sent,trash,spam,template,draft,junk,deleted,local"; # Comma separated list of words to use to ignore those names in boxes, is applied to the full path of the box
-$DEBUG = 0; # 0-No debug, 1-Debug, 2-Debug and stop after scanning boxes
+$DEBUG = 0; 	# 0-No debug, 1-Debug, 2-Debug and stop after scanning boxes
 # End Constants
 
 $NEW = -1;
@@ -38,13 +38,10 @@ Gtk2->main;
 sub CheckMail {
 	my (@mails,%IDS,$id,$status,$new,$lmt,$x);
 
-	# Check IMAP Folders
-	open OLDER, ">&STDERR";
+	open(OLDER, ">&STDERR");
 	open(STDERR,"> /dev/null");
-	$new += ReadBoxes("$DIR/ImapMail");
-	# Check POP3 Folders
-	$new += ReadBoxes("$DIR/Mail");
-	open STDERR, ">&OLDER";
+	$new = ReadBoxes();
+	open(STDERR, ">&OLDER");
 	if ($new!=$NEW) {
 		# Set Tray Icon number of messages
 		setStatus($new,1);
@@ -52,7 +49,7 @@ sub CheckMail {
 	} else {
 		setStatus($new,0);
 	}
-	if ($DEBUG){print "NEW=$new\n";if ($DEBUG==2){exit 0;}}
+	if ($DEBUG){print "NEW=$new\n";if ($DEBUG==2){exit_it();}}
 	return 1;
 }
 
@@ -75,7 +72,6 @@ sub click {
 			$hidden = `xwininfo -all -id $TBW | grep 'Hidden'`;
 			if ($hidden) {
 				system "xdotool windowactivate $TBW";
-				$icon->set_from_pixbuf($icon{'tbrd'});
 			} else {
 				system "xdotool windowunmap $TBW";
 			}
@@ -191,14 +187,48 @@ sub setStatus {
 }
 
 sub ReadBoxes {
+	my ($box,$count,$MorkDetails,$results,@results,$r);
+
+	if (!@INBOX) {
+		# Load path to INBOX only once
+		if ($DEBUG) {print qq|LOAD INBOX paths\n|;}
+		loadBoxes("$DIR/ImapMail");
+		loadBoxes("$DIR/Mail");
+	}
+	if ($DEBUG==2) {foreach my $k (@INBOX) {print "BOX:$k\n";}}
+	$count=0;
+	foreach $box (@INBOX) {
+		if ($DEBUG) {print qq|Read : $box\n|;}
+		my @stats = stat($box);
+		if ($LSTAT{$box} eq "$stats[7]$stats[9]") {
+			if ($DEBUG) {print qq|  No CHANGE : $KCOUNT{$box}\n|;}
+			$count += $KCOUNT{$box};
+		} else {
+			my $new = 0;
+			if ($DEBUG) {print "  Read BOX : ";}
+			$LSTAT{$box} = "$stats[7]$stats[9]";
+			$MorkDetails = Mozilla::Mork->new($box);
+			$results = $MorkDetails->ReturnReferenceStructure();
+			foreach $r (@$results) {
+#				if ($DEBUG==2) {foreach my $k (sort keys %$r) {print "  :: $k=$$r{$k}\n";}}
+				$new += $$r{'unreadChildren'};
+			}
+			if ($DEBUG) {print "$new\n";}
+			$KCOUNT{$box} = $new;
+			$count += $new;
+		}
+	}
+	return $count;
+}
+
+sub loadBoxes {
 	my ($dir,$depth) = @_;
-	my ($BOXES,$box,$count,$MorkDetails,$results,$r);
+	my ($BOXES,$box);
 
 	if ((!$SCAN_ALL)&&($depth>1)) {
 		# If not scan all, don't go deeper
 		return 0;
 	}
-	$count=0;
 	opendir($BOXES,$dir);
 	while ($box = readdir($BOXES)) {
 		if ($box =~ /^\./) {
@@ -210,33 +240,17 @@ sub ReadBoxes {
 			}
 			# Check size and timestamp of current BOX
 			if ($DEBUG) {print qq|Process : $dir/$box\n|;}
-			my @stats = stat("$dir/$box");
-			if ($LSTAT{"$dir$box"} eq "$stats[7]$stats[9]") {
-				if ($DEBUG) {print qq|  No CHANGE : $KNOUNT{"$dir$box"}\n|;}
-				$count += $KNOUNT{"$dir$box"};
-			} else {
-				if ($DEBUG) {print "  Read BOX\n";}
-				$LSTAT{"$dir$box"} = "$stats[7]$stats[9]";
-				$MorkDetails = Mozilla::Mork->new("$dir/$box");
-				$results = $MorkDetails->ReturnReferenceStructure();
-				foreach $r (@$results) {
-	#				if ($DEBUG==2) {foreach my $k (sort keys %$r) {print "  :: $k=$$r{$k}\n";}}
-					$count += $$r{'unreadChildren'};
-				}
-				$KNOUNT{"$dir$box"} = $count;
-			}
+			push @INBOX,"$dir/$box";
 			if (!$SCAN_ALL) {
 				last;
 			}
 		} elsif (-d "$dir/$box") {
 			$depth++;
-			$count += ReadBoxes("$dir/$box",$depth);
+			loadBoxes("$dir/$box",$depth);
 			$depth--;
 		}
 	}
 	closedir($BOXES);
-	if ($DEBUG) {print "  New in $dir : $count\n";}
-	return $count;
 }
 
 sub build_start {
@@ -259,8 +273,8 @@ sub build_start {
 	if ($IGNORE_BOXES) {
 		$IGNORE_BOXES =~ s/,/\|/g;
 	}
-	setTBW();
 	findUserDIR();
+	setTBW();
 }
 
 sub findUserDIR {
@@ -286,7 +300,7 @@ sub setTBW {
 	my ($x,$exit);
 	my $r = 0;
 
-	# Start Up script, wait 10 seonds or until found and start minimized to tray
+	# Start Up script, wait 10 seconds or until found and start minimized to tray
 	$exit = 0;
 	while (!$TBW) {
 		$x = `xdotool search --name 'Mozilla Thunderbird'`;

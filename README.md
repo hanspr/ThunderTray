@@ -43,8 +43,8 @@ cp thundertray.pl ~/MY_INSTALLATION_PATH
 * Tray Icon states
   * Thunderbird icon normal : No email, window is not minimized
   * Thunderbird icon dimmed : Thunderbird is minimized
-  * A number (black): quantity on unread messages in INBOX (Thunderbird is open)
-  * A number (red): quantity on unread messages in INBOX (Thunderbird is closed)
+  * A number (black): quantity of unread messages in INBOX (Thunderbird is open)
+  * A number (red): quantity of unread messages in INBOX (Thunderbird is closed)
   * Thunderbird dimmed and red X : No email. Thunderbird is closed. To start again, click in Tray Icon.
 * If you quit the tray and want to restart, execute:
 ```
