@@ -20,8 +20,7 @@ Unzip. Copy : thundertray.pl to any directory you like
 * Perl Libraries
   * Mozilla::Mork;
   * Glib
-  * Gtk2
-  * Gtk2::TrayIcon
+  * Gtk3
   * MIME::Base64
   * GD
 * System
@@ -31,7 +30,7 @@ Unzip. Copy : thundertray.pl to any directory you like
 ### Installing
 
 ```
-sudo apt-get install libglib-perl libgtk2-perl libgtk2-trayicon-perl libgd-perl libmime-base64-perl cpanminus xdotool x11-utils
+sudo apt-get install libglib-perl libgtk3-perl libgd-perl libmime-base64-perl cpanminus xdotool x11-utils
 sudo cpanm -qn Mozilla::Mork
 unzip ThunderTray.zip
 cd ThunderTray
@@ -95,9 +94,10 @@ $DEBUG = 0; # 0-No debug, 1-Debug, 2-Debug and stop after scanning boxes
 * $MSEC
   * Check for new emails every amount of milliseconds, default 1,000 = 1 second. Every cycle, creates an access to your hard drive, if it is too intense, increase to 1500 or 2000. If you use an SSD drive, it could be reduced, but I do not recommend it, 1 second gives a good responde time.
 
-## Known Issues
+## Icons
 
-* Icons have no transparency. Sorry, tray icon libraries in Perl are old. You may edit icons included to fit your toolbar background color.
+* Icons come with transparent background so they should blend better with dark themes, but
+* You may edit icons included to fit your toolbar background color.
 
 ```
 After modifying the icons, execute in terminal.
@@ -107,9 +107,9 @@ base64 -w 0 iconname.png
 Copy the long string
 Paste in code in subroutine build_start.
 Substitute the string depending on the correct state:
-* tbrd : Normal
-* tbrdwm : Thunderbird minimized
-* tbrdwmx : Thunderbird closed
+* tbrv : Normal
+* tbrh : Thunderbird minimized
+* tbrx : Thunderbird closed
 ```
 
 ## Authors
