@@ -1,15 +1,16 @@
 #!/usr/bin/perl
 
 no warnings 'once';
+no strict 'subs';
 use utf8;
 use Mozilla::Mork;
 use Glib qw/TRUE FALSE/;
-use Gtk2 '-init';
-use Gtk2::TrayIcon;
+use Gtk3 -init;
 use MIME::Base64;
+use Cwd qw(abs_path);
 use GD;
 
-our (%icon,$icon,$eventbox,$trayicon,$tooltip,$NEW,$DIR,$FONT,$FONT_PATH,$TBW,$OFFSET,$emailchk,$MSEC,$IGNORE_CLICK,$DEBUG,$SCAN_ALL,$IGNORE_BOXES);
+our (%icon,$icon,$eventbox,$tray,$NEW,$DIR,$FONT,$FONT_PATH,$TBW,$OFFSET,$emailchk,$MSEC,$IGNORE_CLICK,$DEBUG,$SCAN_ALL,$IGNORE_BOXES);
 our ($LSTATUS,%KCOUNT,%LSTAT,@INBOX);
 
 # Begin Constants: Edit if auto setup does not work for you
@@ -24,16 +25,13 @@ $DEBUG = 0; 	# 0-No debug, 1-Debug, 2-Debug and stop after scanning boxes
 
 $NEW = -1;
 build_start();
-$icon     = Gtk2::Image->new_from_pixbuf($icon{'tbrdwm'});
-$eventbox = Gtk2::EventBox->new;
-$eventbox->add($icon);
-$eventbox->signal_connect( 'button_press_event', \&click );
-$trayicon = Gtk2::TrayIcon->new('ThunderTray');
-$trayicon->add($eventbox);
-$tooltip = Gtk2::Tooltips->new;
-$trayicon->show_all;
+$tray = Gtk3::StatusIcon->new();
+$tray->set_from_pixbuf($icon{'tbrv'});
+$tray->set_title("ThunderTray");
+$tray->set_tooltip_text("Loading ...");
+$tray->signal_connect ("button-release-event" => \&click);
 $emailchk = Glib::Timeout->add($MSEC,\&CheckMail);
-Gtk2->main;
+Gtk3->main;
 
 sub CheckMail {
 	my (@mails,%IDS,$id,$status,$new,$lmt,$x);
@@ -84,25 +82,9 @@ sub click {
 		#middle mouse button
 	} elsif ($_[ 1 ]->button == 3) {
 		#right mouse button
-		pop_menu();
+		exit_it();
 	}
 	return 1;
-}
-
-sub pop_menu {
-	my $menu = Gtk2::Menu->new();
-	my $menu_lbl = Gtk2::MenuItem->new_with_label("Menu");
-	$menu->add($menu_lbl);
-	my $menu_sep = Gtk2::SeparatorMenuItem->new();
-	$menu->add( $menu_sep );
-	#Quit
-	my $menu_quit = Gtk2::ImageMenuItem->new_with_label("Quit");
-	$menu_quit->signal_connect(activate => \&exit_it);
-	$menu_quit->set_image(Gtk2::Image->new_from_stock('gtk-quit','menu'));
-	$menu->add($menu_quit);
-	$menu->show_all;
-	$menu->popup(undef,undef,undef,undef,0,0);
-	return 0;
 }
 
 sub exit_it {
@@ -114,7 +96,7 @@ sub exit_it {
 			system "xdotool windowmap $TBW";
 		}
 	}
-	Gtk2->main_quit;
+	Gtk3->main_quit;
 	return 0;
 }
 
@@ -152,13 +134,13 @@ sub setStatus {
 	$LSTATUS = $status;
 	if ($new == 0) {
 		if ($status eq 'V') {
-			$icon->set_from_pixbuf($icon{'tbrd'});
+			$tray->set_from_pixbuf($icon{'tbrv'});
 		} elsif ($status eq 'H') {
-			$icon->set_from_pixbuf($icon{'tbrdwm'});
+			$tray->set_from_pixbuf($icon{'tbrh'});
 		} elsif ($status eq 'C') {
-			$icon->set_from_pixbuf($icon{'tbrdwmx'});
+			$tray->set_from_pixbuf($icon{'tbrx'});
 		}
-		$tooltip->set_tip($trayicon,"No mail");
+		$tray->set_tooltip_text("No mail");
 	} else {
 		my ($x,$img,$w,$b,$loader);
 		my $pt = 12;
@@ -178,11 +160,11 @@ sub setStatus {
 		} else {
 			$img->string(gdGiantFont,$x,5,$new,$b);
 		}
-		$loader = Gtk2::Gdk::PixbufLoader->new();
-		$loader->write($img->png);
+		$loader = Gtk3::Gdk::PixbufLoader->new();
+		$loader->write([unpack 'C*', $img->png]);
 		$loader->close();
-		$icon->set_from_pixbuf($loader->get_pixbuf);
-		$tooltip->set_tip($trayicon,"You got mail!");
+		$tray->set_from_pixbuf($loader->get_pixbuf);
+		$tray->set_tooltip_text("You got mail!");
 	}
 }
 
@@ -256,13 +238,13 @@ sub loadBoxes {
 sub build_start {
 	my (%data);
 
-	$data{'tbrd'} = decode_base64('iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAIAAABvFaqvAAAABmJLR0QAAAAAAAD5Q7t/AAAACXBIWXMAAAcRAAAHEQGx3syBAAAAB3RJTUUH4goUCzMLbX+bGQAAA/pJREFUOMuVlVtMHFUYx785Mzs39s4ul2WzyJ1FUiqXVoG+SLw8mdRLNKnUxAfji8bEF16sqcak9lVjbHxsYkzaqolp0tRUodRSxNLbWpAu1IVSYFyWvc3uXPbM58NigYXS+s9JZk5O5pdz/t//fMMgImzTXYVenjGvzhpK2kqqKPHglpmGSra3hd/XxIs2ZvsnTAkoFqcnR7SLUwY8RHYRDnazr/c7eI55KOjspP7FuRy14JEKea2PX5VDFdIOoC/P5X6c0OGx5ZLws9e41lpncUqKj9Pj2g8TOgI8/kjmmSNndGVN2wDNrtAT5/PwvzAIgLCa5Y6f+WcD9M2FHEW0EbNKjCEgApaJUHx55Ji8L41eXwQAMqfQ8TsmIrziHDoafsfLK+V2Zo8riggiozq5NUDcFUZOjWmIyF2aNhCAAWz3zU1HVRtjLGXQB9kPGj/q9l/nOTQtdiEbiqbr5rKNN1L74kZVievTipRMq9xE1AAEn7DcUKlbGHoJRkxz6bnAsKOMMAwDwACgS461V8QAhkfu3z4eGSoB6RY7FomTlZSFADaisywTDlGX8Xuf52ennTDb0ksphOAix+RLTAeGnVdyJJEFwlhrhtcocAKb6whEp+7mC3RL3DMqjUTV364l01ktIPxdahMwiQzleBbVArzfcmw553PKitvB1gbEP2fVjmY7tXBJMRZWdI5lqv1CfVASeQKKWHI70aI2FojHTiiSCineVK4UF+qDomni5FRm9GoqrRZa6+XONnuwkpdFYqCwmAvs9w5vPpqF1OvkSHM1Cwi3k+HNpuxtsVf6+N69rraGMo+DY8n6WkL3DrUd7fLf3GwSmkZno4M808wjwJV4v2VtkDiOqfEL/LZ2EZCXeoORm8muzTvyiPnWJ8rJgTDvEPHaWs+bo6e+mvv0VqrHQrLLXdWoMK50PXCamnpfgy4IAifxzBvd+olRQVFt30/vOW8L86zVXxPp81/ocI9zpFACGlnqz1OhWHcAlEnqreeDhBAOAA4NVP0aic0knABg5/T3Om+M3fNL0v7TC8+ilQnKd3p8v4hsHgAsJN9FD8J/VbOMzKEDNFDp2ehH84uJD0+mFzIOADj85NS7XTELLY5lzQKdSwhj9zyqobn5xdUc+2305fV8GupAQ/yTt9t5nt/S2PKpleitsciyLBHt6Vq1yrklLQVKf5qpPnblqfXoGJmBxrUjh8OyLO3Qak0tq81fKsNVQkrrdTZa8/nlsEZZq6DbSXqwlw6+2FTcy87NHwCSy1FM/CVaCY4FlhCK5Os/6qbjgpusLmQcbUFu8IW66go3IWS3v8gD5dVMJh7Ts6tWQSsgYwHv9IVcvgDP8yWIov4FBkZMMk9C7MUAAAAASUVORK5CYII');
-	$data{'tbrdwm'} = decode_base64('iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAIAAABvFaqvAAAACXBIWXMAAAcRAAAHEQGx3syBAAAAB3RJTUUH4goUCzUvBybYTgAAAyRJREFUOMuVlVtv20YQhc/MLm8SRVmyXCeokypFL2iR5A/0/6MPfSiKoHCAuEACp3Gtu0SKWpK7O32QXTmSnTQHfOBtP86cnRmSiOBAayOT3M8KbxppHBQjVEhjHmTcT1nx4QrQHmhdyduRG688HpBWOOvT05OA6WHQh7l/c2W94LNqh/L8iW7F6h7Qmyv3fubwvxUovHxCWTvYXt6kezn9MgqAxuHVe29qtwMVRi7++TLKVrWl15fVDvTXtROA4WNeCyCAZmxPPnvMjBrPNwC4MDLNPQRnwR8vst8iNpFGNyggULAB1RD5JIwupw6AnuTbnZZutF4VluBNgwj2x86rfjRnggeVTauw7aLpLJrjysd7Ca6Mqhurp7kHELFJY1eg/TVG4s1pMgr0zXsK0lXrLtbAaLRZvl7+vAdyQpNlpU0jAjB5IspaUhezLFwF+p7iFUEbY4LzUHtVXRrHtQVBah96ISbbi/NV4fbaxlpZFm4ybxrrErXetwmorddMsB4/ZOfGRoEyQUCtRC0Le9TRIjCVL40nQhJxmgSKAcMHkQoTONQQUKSqTmS2D9IWe4/5yo7nTWOl01a9TCcxKwUHtXHJcTj6OCAJNXMnYQCrOrv7kV6m44gHR0GWqjAguu3P2oc/ZX/24sVHEXnf62gedBjAtBpAdu28zYUPHE/UZtBaLOre3Zuhclk74pOMAyXz+vjX8S8XxctlcwzQJ9rCiZqa/n+JiXcnqWdmrRhPe/5izMbS5ap7xZkiGbSWJ9H1UTAl2h9M483ACd+YAyhqho8SItIAvnkUXy/LvNYAAnbf9xbTMlLq+LL8SmBbKu9H14q2XU3virMd1dvhiSRxuJtH5ab+/W1TNhrAsLv6rl9ChIi8yLrmSRla70LeVI7e5We3HrvTtHrxbXfr5W6wucbki8nSaEVu0LJxsF8sf+fJ+fTolmJP0/r5s0wpdc+o9c76cqxQH7r9oUjOJ5kTgveamuFAho87d/eVDv8itSlQr5TURCAiEVzM0rzigOrS6m5Cw8dpHN2prodAN5la21RrbysRJ0ICDqJWECXMvIfY6l8kuthNC108NAAAAABJRU5ErkJggg');
-	$data{'tbrdwmx'} = decode_base64('iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAABmJLR0QA/wD/AP+gvaeTAAAACXBIWXMAAAcRAAAHEQGx3syBAAAAB3RJTUUH4goVDzoPBGUr8AAABC5JREFUSMells1rXFUYxn/nnHvnzkxmJplJ0pa0aaH4gaVWEIqii1a7ERdSGrKQbhREsAsRBPEfEPzciXbnqi6ycSEuhEJRi1Kt+FFDK01p2rSJmWS+78zcuR/ndTFJSsxEW/vAgcPlvOc573Pe9zlXiYiwDdqBsNqyVH1LEAlRAkZDykAurRkraEo5jdFsCzWIoN0T5ssJK03Lf8ExsKek2DvuotVdECzWLFeXYqxwTxhKCQcnHbJpsz3B1aWEW9WE/wvXwKFJRWHI3fi2od5C5f42B4gSuHTLEoTJZgI/EOb+ur/N1xHGiisLvc0E15YTBNBY0rqNAAI4mo35vYxqYFipdfsEfiBUWhYE9ri/8WjhJzwd4Dkw7PogYIhxVQgid8miWKj0FXFWW+ulKAx7bZp+jMISROAR83D+EiWvhlZgUXSiLH48hB/lqUej9Gx6oFTNwBBGMU5ljcDTAbl0gs8QuykjNmBnpozr3AkyCMOmzTBtoEy52+BK48BAgkQUq40eThBJX39lUUpRyAqhX6WQauI627eoCAyxgiLBYgb1MJ0gQYcxKITQprCi0CqmmG7R9BMGmUgcCw0/YbUWEcUJGdMefA9AGFscrSC28FDhMkHs4ZoA11VkM4aGHzOSdxCBoGfpBBalIONpchm370GB3iZDQSvQKQcEhWd65L1gY0Euq7EWas2YlVpEFAv5IUOx4JBJa4yBBEM3yTCaKg9IQEg5Gp3P9E/QDAtbTlEsOKQ9zdiISyFnSLkKtWZot199h2s7nmX3qWcopuub4069wMRjWXjjFfRYvk9Q6Y2BbLbDdTn0ABV2vv86Ztco8XcXqJ/7444fXThH5vzXJDsn2H36U/R4QeMaoRaO8sPK08z5h2hEo4D6d5seybPr47f6krz3LmIFscLwR29jAf3hJ6RKJRyjYW/RMreiCWLFQnOYJV3AKGEs22DcW2bEraDU1rdh6MjjuC+fRH12hsxXnwOQuvIr/snXODj1HEqpvl1bEX78s0Mr7HdVxol5sFin0vHYlQuoBwYhJmtalLxljEo2av3CwgFyJ45Cb61AvDS5s9+yf/8OlFI4AFopDu1z+WU+ohM5dGOHZpjikR1tEKGUTbAitMMci50SsU1I6S69RNFtJOQbVezEPkBwlm4wmQO1Vg2bHpwkCmjVV2kEDkYljGVj0u7gGr/dynC5MkLxzRfJnv2C8ukvKaYj3JdOkJ+eZnJmZmPxJiRxJFFzUWxzXmSbcXtxWc7+3pVvPjgjsyA/P3FUrt2qS5Ikcv3YMZkFqc/MiIiI2u6vIgx8CJsYCVGqn7IIzFVztHoat7aIev4IulZh4vz3jDz1JEopOhcvMn/4MHp8nAdmZ7dm8E/EUSRdvy7t+rL4tUVpVZekWV2W68ePyyzIjampLTE3p6ZkFuTm9LT8DUkbgb0gFPxOAAAAAElFTkSuQmCC');
+	$data{'tbrv'} = decode_base64('iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAHEQAABxEBsd7MgQAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAASzSURBVEiJnVVbbJRFFP5m/r97bbul7Pa6tBSw0kIptoIKoqJQkQdEEh7kgWBMCDFIIIbAi0kpkVQg8UGJRjEmigajBEwVA15SIFJACi0B2sACrb1tt3spu/vv5d+dOT60hZbdQuCbTDI5Ofm+M+d8k2F4CJY1+KuYwlZDyjoAJYyxfIDCJGmQgdqI6BizyOMntxdok3GwdMHX9vgqueD1AK19WAEjoEAyrn1CqtjXXF8We6TAsgb/RjAcAKA+mvw+pNCvhYdurrlwYMmNSQWWNfg/JWDz4xCPB0nh0XovrTx/8PXWsRgfOyzd7dsmgc0E4Ek3uJJnLp53rHp9U/EEgaUNgWom2b4nZh63OTc6Mx0zv3rgBrKRQIrCEqLA1A0aXVYT7p0fZ2VkOVZUrft2JQDwlxr8VSSxgghYa9vBd1VsRK7Bg6mZDPNsLhABJqYhWw0ARCDCIzfAmTWvahsApjKi1QSAgTDXfod1ujRkMB0DIYIdYWyd9SGedbTBoBISUkFPuASuYBluh2eh/e5CePWCtAPPsDheKF64PlcdeUQcdqMbM/PjkFSCVTiFRGIAy4uakWXlYIxhxHAEm6Ubc/O6ATTjVP917L26M60AU1RrzvTldVwSm0YAMngcisJQUSJg0y9g8ZQ/kJ3JwdI+RUAIoASnobJoekcxBVANszjA8gEpA3ou9KQKoxJBdZELHXeiSApKIQ5pAlddGv65PIxgOIYiY1f6WYBBUc0FKkmKEoNhy+xGuCN2ZFs8yMlSUFpkwrVbGqrLMyEkYcCjo2cwDlVhKHQYMcNphsnAAY9pdLATQVKAZDLOJeAmcJ5n9uKpqZ57CTOcJiQShEsdIZxpvYuglsTsGRbUVGbCmW+AxcShkxF9kSI8l9uc0iJJAkkRc3MQXQIB14crUvo9/+lM5NsNWDTfhsqZVkzJUqHw+0n+eC52Vu5CreNKyhAooSM6dOM0J8JxAtDifZGknKigqgzFDiMMGeknXWQZwCLnVVwZrk25QSIe7Ov6s76da7r4RUrhawssYKtO/Oirb93R2eabF5bE05I+iJgw4ryndsKARSKOqPfmUQBxZfDs/kTdqg3lQzFrTRKq5T9tmv30wBJ2pGuN6I6Uhw2KzvJNgypnMq3AX/2v4JR78bgIIaF5fUOt320Iuy8PqwBQW4qtEXF3XVfQZgaAHGM84/2adrT0OgxW62L83FMHkiE4LTexwP43TEoUACCJ47DrrVHjj0DEQxTqv9g4cPnrHmDcf7Dv8xOvtgTKT/aFsxQAWD+nA5tquyFJQlUUJJICt/1GtPROgabHkGPogy+i4AfXmvvkuoaIu+3Q9UNvvgtAnyAAAO1Ne2uEZdrvnf7cPDOP4flSDQXZqSZPCoGmG4VoPPfMvbaIeIgig1cOdXz/3iagPzKWm2KPi0c+KixzOg7m2CwrOU/vnt9cxfj4bAViQoFMxiGiAV+w7989t4++89lY5ZMKjKHlp11vTC90bLFlm5eqqmJUOIcgji8ulqHTa0QO9+FWwBoNDXub2s78ur2/9cteAClOmFRgDPs/eNteXVX6stlkmqOqfGo4FtP8vuCgx6ud27z7m/bRitNbDMD/d+Nupyos3ZQAAAAASUVORK5CYII=');
+	$data{'tbrh'} = decode_base64('iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAABmJLR0QA/wD/AP+gvaeTAAAACXBIWXMAAAcRAAAHEQGx3syBAAAAB3RJTUUH4wYYEAoLN/LbLgAABDpJREFUSMetlktslFUUx3/3fo95dWb67lDaGoUY0RAMugAjvhZEuyDERHcmJgTDwhiNup+VISHGha+FJCIhuiJAVIwkRkoFXQBKVRDCq7R0Zjrt9DHPb77HcUEKrTPlof6Tm9yce8/5n3PPOTlXcRvsHaqtRautiGwGBhT0ACURySn4TZCDypLDrzwRKy9nQzUTfjFce1iJSoO8xJ0xE3j1D9Cy69VnkrU7Euwdqr2G4mPA5B4ggf9nvTL94vbBgQvLEuwdqn0o8Dr/FiKT9fmJwe1bVp1aEOmFzZ5jtbf+k3EApbqtROrgpwcurFxCsGfIWaeEXfwPUMros2Ptn/0jAtkpYCgCv8WcRQABbJOb+3tZhh17/pP9I4MAxudDtbVKeB9gbeR7tb7jtBqrrsaybLpDBeacCJaqY+s6XmAuV3gNcSht9Kxf3bLPBLYKoBC6ozMqX3DReBQdiFJnY8cP9EazGFoIRDNXT1Jw2ijU28nV+ij7LU0ptBXbGF+5rt280USKqFGivcVHSPIQo/h+kVXxK4RstajghG5rlu7YLHCFq8U8P01uah6D1rFw66rNWoR+AEN5KAVdyYCQP85A5NIi480qEpJcReMuc0ODNlZrUD0gQdWP4gcaQ7mk4gXyMy6BNKrVXWGy4HItU8OpeyTMWURoXIDWVspEpCpgb+gcpuTGCFklwraiNW4yWaiT6rARgWLZZ67soZUiHjNoS5iYhoKyuUyEgkjgaIGsoHTMqtARLd280JYwCQLITNUZzdRw3ICuNoveLptEzMAyFT4m826cvsiVxnKVgEC8rAZOI5CvdTZ4keqwaYka9KfCdLVZhG2NWpSWqhdhU9dRemO5xmYIfLzy1DEtwmGAsfJ9IrI0qVpDPGpg6OZpjFtF+hM5srXehjPfc67PXj56Rrt+cEgkmM7UVqovL748/WNm01/Zaqokd9VQ4InJeKl3qfOBh1eZPgA4CuDQiand+Vps24KSqQLXUIH0xbPV+1suh1dEJkJaBU0JLs4/wPHchqXeO6Xp4ujPj72zY8uoBuht5c1W26kuuBA2POvJvgnbUJGkbQ+Ezs4/xe+zGxktP4gn1q1KQfFHYc2Stw88R5zixM5S9vTYknlw4uSl58aqnUfm67YB8Gh3nsd7525oKYUEwkzVYGw+gut7hI15Kq5mZHrNLULfxS1l9uVHvtqWTqfrDQMnd+H4erGS301VI92m8uhvdYmGpGkbn59qYXh8xU1R4DnilnP7pka+2ZFOv11ZdmRmzg2vaEvEdofC1uByeb5YSDB8rQtPFBL4iFuddorX35s5d/CjBc9vO/QBxs8OvdAWj70RCpnPaq1DSikExcnrreQrJmFVYaZqV51a5evs6Pl3i5lT4+l0OrirX8VinDiyvzPVk3zaMs1HtFYddc8rVytOrlxxf/l26NczQL2Z4QX8DZKuC1rmjAtSAAAAAElFTkSuQmCC');
+	$data{'tbrx'} = decode_base64('iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAABmJLR0QA/wD/AP+gvaeTAAAACXBIWXMAAAcRAAAHEQGx3syBAAAAB3RJTUUH4wgBEAIWDgybiwAABONJREFUSMellXto1lUYxz/n/H7v/bK9u71uzeU2sywSL3hBESGLhCxCkW5GEYZEYZYKXUAsMIJCDMK0hKjAggVJYIEiVKakhjPS1XI6N9fc3nfzvd9+7+93Tn+o0+WmpV84/xzOeT6H53nO9xFcR33D9o7uuHPncFq1WLYO2w5BKbFMSS7oFQMNEdm5vi3xzN4NE3LjxRBjbfZfsD86ftZedCGrpnIDGZLibRF9eGNbbMkPm5qLNwQc7bL2dJ63l6CR/A95XCq+YIrR1lDte3FcwP7fS0f6E85sblKm1Lm5LeqrlobQqst7I6889Fdp760EB7CVCBw+I1YMJYtbRwF6h+yPT5937kfDrS7bkeEDHfmlowDHz5bv0yCEUDpgpkbOu8yb42TKntbfTsW+BJDnhu0dyZxuBZjq2S8W1ezBZ+TwuaHOk7iYW2HhkYVL1/+LBF2DYi4gzO5B504NCDR1/iTDiTJSOGQt8GMxJ/ID9f5BDKlRWpIuh7lQqiRpVTFYaiDvBMdE5Mqexs7TfcvNoYzTggafmSMScNC6gin0oFSW5mAPHre4quE0ta4Utf4U0ENvNs6h2IIxARrhShXNJ2WxTBjAEDZCQE2Fwuv00+jtvir4GAE0hOlFivI4WZKkcuUqaTsEEFoXHR+OkhiiTF0owXCyjBoj5VZZE0+UOTdQpGTZhIzUuMUulQmYAmylMWZXHyJn+/G4cnjdgoqQSTxhEa1yozVk8w6prE3fmztJ7/2V8MxWZn/9BuTMUbXXjkN4zWLcHUfQ8xc3S9Mkq7UQATNPle+KZ1WGTJQDA0MWvQNFSpaiJuJixvvP4o5Wkj52mjPbvidTDtLg6xl5tW/Xe7g7jmDXNOB9a8sJGfKIAYB4seaadESr3QT8Bo1RLzURF163xFMZ4N4tq9BA99ZvmB7/lHr/4EXj6zyG77N3UEBmwzYmTp5wRtZHZBfA34WJaD26qFJCyG9g/Mv2qhfeQ9NzD4DtEHv9XQaSEXSpQGjzc0jHprj8JfSs+Zm7mqMvimnrBwLrlobijhI+j2EXGkOxfEvwVKjWO+gW1/lYTrHMLw9tIneqn8Ky1Wgl8O/ejj1pKhe2/Ui0onh06YKmeQLg4IlEe2fMPf2KKyplSq0bgzG7KdBtRr39hhTqGkjqRA+Hl76NUupSZ0oS239GNU8uLJlm7qyPVq256EUd/Qsj3pI94u2GLefVnzeE9nhcrkbjj/QCTibn0pu7A1u7RgD53jgohfAGwOtHKIXsO0VTZfFgfbRq7ah5MBBLfXHgL/VU2rr4u6bVDjGrPoXWGikljlIkCyZ9aS+WY2Omz9H/yAp0IkH65a2AJvzBK+hQpX08k7x9I/QDmJcBE+oqni5khoqp4Z4n4nl3wCUccpYg6BGXRqOkOqCoDuRRSvHTa1vQiQTW9EUUHl6FckoE932ekx3tgemwBXh81MAB8IVqnq+a0PTJ5Gqra0ptiaBn7AK3f3mQ7PffobwBEus+RKp8obUqt6+3o30GkBXw2G5YPu7QB8gM9+2SVnKOS9qTpBSGFAKlBUdOOgw9uhiRHMZ+dbPyr1j557TW8P76ushaQH0LLwjYBsQKcI+4kbMnhwZXaTv/oFMu1Grl+E+uXN2cOXCoxnf31PPLOv5oTUMJGGmxTSBmwj4BizW0/QOH7FN/HtcW2gAAAABJRU5ErkJggg==');
 	foreach my $key ( keys %data ) {
 		$icon{$key} = do {
-			my $loader = Gtk2::Gdk::PixbufLoader->new();
-			$loader->write( $data{ $key } );
+			my $loader = Gtk3::Gdk::PixbufLoader->new();
+			$loader->write([unpack 'C*', $data{$key}]);
 			$loader->close();
 			$loader->get_pixbuf();
 		};
@@ -285,7 +267,7 @@ sub findUserDIR {
 	}
 	opendir($dirh,"$ENV{'HOME'}/.thunderbird") or die "ERROR opendir\n";;
 	while ($fn = readdir($dirh)) {
-		if ($fn =~ /\.default$/) {
+		if ((-d "$ENV{'HOME'}/.thunderbird/$fn")&&($fn =~ /\.default$|\.\w+/)) {
 			$DIR = "$ENV{'HOME'}/.thunderbird/$fn";
 			last;
 		}
