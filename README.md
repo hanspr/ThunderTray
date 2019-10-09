@@ -8,6 +8,11 @@ It has been developed as an alternative to disabled Tray Extensions on Thunderbi
 
 It can be easily installed and removed from the system. You may remove it when a reliable extension comes up, or Thunderbird team gives a native tray icon, some day.
 
+---
+**Small note**, I just released a new project, is a linux terminal editor, if you could git it a try, visit :
+https://github.com/hanspr/mi-ide
+
+---
 ## Getting Started
 
 Download latest release or zip file.
