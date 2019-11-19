@@ -300,5 +300,7 @@ sub setTBW {
 		$exit++;
 		select(undef, undef, undef, 0.25);
 	}
+	# Wait for thunderbird to load email, before scanning
+	sleep(5);
 	return 0;
 }
