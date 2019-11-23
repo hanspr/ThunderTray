@@ -11,7 +11,7 @@ use Cwd qw(abs_path);
 use GD;
 
 our (%icon,$icon,$eventbox,$tray,$NEW,$DIR,$FONT,$FONT_PATH,$TBW,$OFFSET,$emailchk,$MSEC,$IGNORE_CLICK,$DEBUG,$SCAN_ALL,$IGNORE_BOXES);
-our ($LSTATUS,%KCOUNT,%LSTAT,@INBOX);
+our ($LSTATUS,%KCOUNT,%LSTAT,@INBOX,$START);
 
 # Begin Constants: Edit if auto setup does not work for you
 $DIR = "";      #/home/MYUSER/.thunderbird/PROFILE.default;
@@ -24,6 +24,7 @@ $DEBUG = 0; 	# 0-No debug, 1-Debug, 2-Debug and stop after scanning boxes
 # End Constants
 
 $NEW = -1;
+$START = int(3000/$MSEC);
 build_start();
 $tray = Gtk3::StatusIcon->new();
 $tray->set_from_pixbuf($icon{'tbrv'});
@@ -36,6 +37,11 @@ Gtk3->main;
 sub CheckMail {
 	my (@mails,%IDS,$id,$status,$new,$lmt,$x);
 
+	if ($START > 0) {
+		# Wait 3 seconds on start up, before scanning boxes
+		$START--;
+		return 1;
+	}
 	open(OLDER, ">&STDERR");
 	open(STDERR,"> /dev/null");
 	$new = ReadBoxes();
@@ -301,6 +307,5 @@ sub setTBW {
 		select(undef, undef, undef, 0.25);
 	}
 	# Wait for thunderbird to load email, before scanning
-	sleep(5);
 	return 0;
 }
