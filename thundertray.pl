@@ -170,7 +170,7 @@ sub setStatus {
 		$loader->write([unpack 'C*', $img->png]);
 		$loader->close();
 		$tray->set_from_pixbuf($loader->get_pixbuf);
-		$tray->set_tooltip_text("You got mail!");
+		$tray->set_tooltip_text("You've got mail !");
 	}
 }
 
@@ -271,14 +271,30 @@ sub findUserDIR {
 	if ($DIR) {
 		return 0;
 	}
-	opendir($dirh,"$ENV{'HOME'}/.thunderbird") or die "ERROR opendir\n";;
-	while ($fn = readdir($dirh)) {
-		if ((-d "$ENV{'HOME'}/.thunderbird/$fn")&&($fn =~ /\.default$|\.\w+/)) {
-			$DIR = "$ENV{'HOME'}/.thunderbird/$fn";
-			last;
+	# Use INI file to locate default folder
+	if ((-e "$ENV{'HOME'}/.thunderbird/profiles.ini") && (open(P,"<:utf8","$ENV{'HOME'}/.thunderbird/profiles.ini"))) {
+		while (<P>) {
+			if ($_ =~ /Default=(\w+\.\w+)\n/) {
+				my $fn = $1;
+				if (-d "$ENV{'HOME'}/.thunderbird/$fn") {
+					$DIR = "$ENV{'HOME'}/.thunderbird/$fn";
+					last;
+				}
+			}
 		}
+		close P;
 	}
-	closedir($dirh);
+	if (!$DIR) {
+		# Search directory if not found using INI file
+		opendir($dirh,"$ENV{'HOME'}/.thunderbird") or die "ERROR opendir\n";;
+		while ($fn = readdir($dirh)) {
+			if ((-d "$ENV{'HOME'}/.thunderbird/$fn")&&($fn =~ /\.default$|\.\w+/)) {
+				$DIR = "$ENV{'HOME'}/.thunderbird/$fn";
+				last;
+			}
+		}
+		closedir($dirh);
+	}
 	if (!$DIR) {
 		die "Could not find user DIR";
 	}
