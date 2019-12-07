@@ -274,7 +274,7 @@ sub findUserDIR {
 	# Use INI file to locate default folder
 	if ((-e "$ENV{'HOME'}/.thunderbird/profiles.ini") && (open(P,"<:utf8","$ENV{'HOME'}/.thunderbird/profiles.ini"))) {
 		while (<P>) {
-			if ($_ =~ /Default=(\w+\.\w+)\n/) {
+			if ($_ =~ /Default=(.*?)\n/) {
 				my $fn = $1;
 				if (-d "$ENV{'HOME'}/.thunderbird/$fn") {
 					$DIR = "$ENV{'HOME'}/.thunderbird/$fn";
