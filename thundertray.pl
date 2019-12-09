@@ -221,7 +221,7 @@ sub loadBoxes {
 	while ($box = readdir($BOXES)) {
 		if ($box =~ /^\./) {
 			next;
-		} elsif (($box =~ /INBOX\.msf/i)||(($SCAN_ALL)&&($box =~ /\.msf$/))) {
+		} elsif (($box =~ /INBOX(-\d)?\.msf/)||(($SCAN_ALL)&&($box =~ /\.msf$/))) {
 			if (($SCAN_ALL)&&($IGNORE_BOXES)&&("$dir/$box" =~ /$IGNORE_BOXES/i)) {
 				if ($DEBUG) {print "Ignored : $dir/$box\n";}
 				next;
@@ -229,10 +229,7 @@ sub loadBoxes {
 			# Check size and timestamp of current BOX
 			if ($DEBUG) {print qq|Process : $dir/$box\n|;}
 			push @INBOX,"$dir/$box";
-			if (!$SCAN_ALL) {
-				last;
-			}
-		} elsif (-d "$dir/$box") {
+		} elsif (($SCAN_ALL) && (-d "$dir/$box")) {
 			$depth++;
 			loadBoxes("$dir/$box",$depth);
 			$depth--;
