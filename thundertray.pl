@@ -229,7 +229,7 @@ sub loadBoxes {
 			# Check size and timestamp of current BOX
 			if ($DEBUG) {print qq|Process : $dir/$box\n|;}
 			push @INBOX,"$dir/$box";
-		} elsif (($SCAN_ALL) && (-d "$dir/$box")) {
+		} elsif (-d "$dir/$box") {
 			$depth++;
 			loadBoxes("$dir/$box",$depth);
 			$depth--;
