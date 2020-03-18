@@ -309,8 +309,8 @@ sub setTBW {
 		if ($x) {
 			$TBW = $x;
 			select(undef, undef, undef, 0.25);
-			system "xdotool windowunmap --sync $TBW";
 			system "xdotool windowsize $TBW 100% 100%";
+			system "xdotool windowunmap --sync $TBW";
 			last;
 		} elsif ($exit>40) {
 			# Could not be found, aborted
