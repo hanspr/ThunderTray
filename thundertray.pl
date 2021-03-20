@@ -20,8 +20,14 @@ $OFFSET = 0;
 $MSEC = 1000;
 $SCAN_ALL = 0;  #0 - Only INBOX, 1 - All boxes found
 $IGNORE_BOXES = "sent,trash,spam,template,draft,junk,deleted,local"; # Comma separated list of words to use to ignore those names in boxes, is applied to the full path of the box
-$DEBUG = 0; 	# 0-No debug, 1-Debug, 2-Debug and stop after scanning boxes
+$DEBUG = 0; 	# 0-No debug, 1-Debug, 2-Debug and stop after scanning boxes, 3-Debug to file
 # End Constants
+
+if ($DEBUG == 3) {
+	open(STDOUT,">:utf8","$ENV{'HOME'}/thundertray.log");
+	open(STDERR,">>:utf8","$ENV{'HOME'}/thundertray.log");
+	$DEBUG = 1;
+}
 
 $NEW = -1;
 $START = int(3000/$MSEC);
@@ -37,11 +43,6 @@ Gtk3->main;
 sub CheckMail {
 	my (@mails,%IDS,$id,$status,$new,$lmt,$x);
 
-	if ($START > 0) {
-		# Wait 3 seconds on start up, before scanning boxes
-		$START--;
-		return 1;
-	}
 	open(OLDER, ">&STDERR");
 	open(STDERR,"> /dev/null");
 	$new = ReadBoxes();
@@ -304,16 +305,21 @@ sub setTBW {
 	# Start Up script, wait 10 seconds or until found and start minimized to tray
 	$exit = 0;
 	while (!$TBW) {
+		if ($DEBUG){print "TWB : $TWB\n";}
 		$x = `xdotool search --name 'Mozilla Thunderbird'`;
 		chop $x;
-		if ($x) {
-			$TBW = $x;
-			select(undef, undef, undef, 0.25);
+		if ($DEBUG){print "X = $x\n";}
+		my @wins = split /\n/,$x;
+		if ($wins[0]) {
+			$TBW = $wins[0];
+			if ($DEBUG){print "FOUND $TWD\n";}
+			select(undef, undef, undef, 0.5);
 			system "xdotool windowsize $TBW 100% 100%";
 			system "xdotool windowunmap --sync $TBW";
 			last;
-		} elsif ($exit>40) {
+		} elsif ($exit>60) {
 			# Could not be found, aborted
+			if ($DEBUG){print "EXIT?\n";}
 			last;
 		}
 		$exit++;
