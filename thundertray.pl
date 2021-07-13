@@ -83,6 +83,7 @@ sub click {
 		} else {
 			# Unhide
 			system "xdotool windowmap $TBW";
+			system "xdotool windowactivate $TBW";
 		}
 		setStatus($NEW,0);
 	} elsif ($_[ 1 ]->button == 2) {
