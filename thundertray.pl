@@ -76,14 +76,14 @@ sub click {
 			# Is Visible, focus or hide
 			$hidden = `xwininfo -all -id $TBW | grep 'Hidden'`;
 			if ($hidden) {
-				system "xdotool windowactivate $TBW";
+				xdotool("xdotool windowactivate $TBW");
 			} else {
-				system "xdotool windowunmap $TBW";
+				xdotool("xdotool windowunmap $TBW");
 			}
 		} else {
 			# Unhide
-			system "xdotool windowmap $TBW";
-			system "xdotool windowactivate $TBW";
+			xdotool("xdotool windowmap $TBW");
+			xdotool("xdotool windowactivate $TBW");
 		}
 		setStatus($NEW,0);
 	} elsif ($_[ 1 ]->button == 2) {
@@ -101,7 +101,7 @@ sub exit_it {
 	if ($TBW) {
 		$map = `xwininfo -id $TBW | grep 'IsViewable'`;
 		if (!$map) {
-			system "xdotool windowmap $TBW";
+			xdotool("xdotool windowmap $TBW");
 		}
 	}
 	Gtk3->main_quit;
@@ -315,8 +315,8 @@ sub setTBW {
 			$TBW = $wins[0];
 			if ($DEBUG){print "FOUND $TWD\n";}
 			select(undef, undef, undef, 0.5);
-			system "xdotool windowsize $TBW 100% 100%";
-			system "xdotool windowunmap --sync $TBW";
+			xdotool("xdotool windowsize $TBW 100% 100%");
+			xdotool("xdotool windowunmap --sync $TBW");
 			last;
 		} elsif ($exit>60) {
 			# Could not be found, aborted
@@ -328,4 +328,26 @@ sub setTBW {
 	}
 	# Wait for thunderbird to load email, before scanning
 	return 0;
+}
+
+sub xdotool {
+	my $cmd = shift;
+	my ($x);
+
+	my $r = `$cmd 2>&1`;
+	if ($r =~ /failed/) {
+		$x = `xdotool search --name 'Mozilla Thunderbird'`;
+		chop $x;
+		my @wins = split /\n/,$x;
+		foreach my $tbw (@wins) {
+			$cmd =~ s/$TBW/$tbw/;
+			$TBW = $tbw;
+			my $r = `$cmd 2>&1`;
+			if ($r !~ /failed/) {
+				return;
+			}
+		}
+		exit 0;
+	}
+	return;
 }
