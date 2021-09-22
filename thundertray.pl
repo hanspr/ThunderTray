@@ -347,7 +347,6 @@ sub xdotool {
 				return;
 			}
 		}
-		exit 0;
 	}
 	return;
 }
