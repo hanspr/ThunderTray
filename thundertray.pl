@@ -223,7 +223,7 @@ sub loadBoxes {
 	while ($box = readdir($BOXES)) {
 		if ($box =~ /^\./) {
 			next;
-		} elsif (($box =~ /INBOX(-\d)?\.msf/)||(($SCAN_ALL)&&($box =~ /\.msf$/))) {
+		} elsif (($box =~ /INBOX(-\d+)?\.msf/)||(($SCAN_ALL)&&($box =~ /\.msf$/))) {
 			if (($SCAN_ALL)&&($IGNORE_BOXES)&&("$dir/$box" =~ /$IGNORE_BOXES/i)) {
 				if ($DEBUG) {print "Ignored : $dir/$box\n";}
 				next;
@@ -272,13 +272,18 @@ sub findUserDIR {
 	}
 	# Use INI file to locate default folder
 	if ((-e "$ENV{'HOME'}/.thunderbird/profiles.ini") && (open(P,"<:utf8","$ENV{'HOME'}/.thunderbird/profiles.ini"))) {
+		my $fn = '';
 		while (<P>) {
-			if ($_ =~ /Default=(.*?)\n/) {
-				my $fn = $1;
+			if ($_ =~ /Default=1\n/ && $fn) {
 				if (-d "$ENV{'HOME'}/.thunderbird/$fn") {
+					if ($DEBUG) {
+						print "FOUND profile DIR : $ENV{'HOME'}/.thunderbird/$fn\n";
+					}
 					$DIR = "$ENV{'HOME'}/.thunderbird/$fn";
 					last;
 				}
+			} elsif ($_ =~ /Path=(.*)\n/) {
+				$fn = $1;
 			}
 		}
 		close P;
