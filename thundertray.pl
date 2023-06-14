@@ -11,7 +11,7 @@ use Cwd qw(abs_path);
 use GD;
 
 our (%icon,$icon,$eventbox,$tray,$NEW,$DIR,$FONT,$FONT_PATH,$TBW,$OFFSET,$emailchk,$MSEC,$IGNORE_CLICK,$DEBUG,$SCAN_ALL,$IGNORE_BOXES);
-our ($LSTATUS,%KCOUNT,%LSTAT,@INBOX,$START);
+our ($LSTATUS,%KCOUNT,%LSTAT,@INBOX,$START,$TWB,$TWD);
 
 # Begin Constants: Edit if auto setup does not work for you
 $DIR = "";      #/home/MYUSER/.thunderbird/PROFILE.default;
