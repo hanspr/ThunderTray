@@ -223,7 +223,7 @@ sub loadBoxes {
 	while ($box = readdir($BOXES)) {
 		if ($box =~ /^\./) {
 			next;
-		} elsif (($box =~ /INBOX(-\d+)?\.msf/)||(($SCAN_ALL)&&($box =~ /\.msf$/))) {
+		} elsif ($box =~ /INBOX\.msf/ || ($SCAN_ALL && $box =~ /\.msf$/)) {
 			if (($SCAN_ALL)&&($IGNORE_BOXES)&&("$dir/$box" =~ /$IGNORE_BOXES/i)) {
 				if ($DEBUG) {print "Ignored : $dir/$box\n";}
 				next;
