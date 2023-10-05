@@ -202,19 +202,18 @@ sub ReadBoxes {
             my $new = 0;
             if ($DEBUG) { print "  Read BOX : "; }
             $LSTAT{$box} = "$stats[7]$stats[9]";
-            eval {
-                $MorkDetails = Mozilla::Mork->new($box);
-            };
+            eval { $MorkDetails = Mozilla::Mork->new($box); };
             if ($@) {
                 # Como recuperarse de este error?
                 system "notify-send -i dialog-information --expire-time=5000 'Thundertray' 'Fix INBOX : $box'";
-                #system "pkill -9 thunderbird";
-                #system "rm -f $box\n";
+                system "pkill -9 thunderbird";
+                system "rm -f $box\n";
                 #sleep(5);
                 #system "thunderbird & > /dev/null";
+                #redo;
                 exit_it();
             }
-            $results     = $MorkDetails->ReturnReferenceStructure();
+            $results = $MorkDetails->ReturnReferenceStructure();
             foreach $r (@$results) {
                 #				if ($DEBUG==2) {foreach my $k (sort keys %$r) {print "  :: $k=$$r{$k}\n";}}
                 $new += $$r{'unreadChildren'};
