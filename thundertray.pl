@@ -335,7 +335,8 @@ sub setTBW {
             $TBW = $wins[0];
             if ($DEBUG) { print "FOUND $TWD\n"; }
             select(undef, undef, undef, 0.5);
-            xdotool("xdotool windowsize $TBW 100% 100%");
+            system "wmctrl -ir $TWD -b add,maximized_vert,maximized_horz";
+            #xdotool("xdotool windowsize $TBW 100% 100%");
             xdotool("xdotool windowunmap --sync $TBW");
             last;
         } elsif ($exit > 60) {
