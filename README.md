@@ -44,6 +44,9 @@ cp thundertray.pl ~/MY_INSTALLATION_PATH
 **Recommendations**
 * Disable any active tray extension in Thunderbird.
 * Because application is not running inside Thunderbird, it has no control over the Close window Button. To minimize: click always on the Tray icon
+* Add to you start up applications, make sure you start it as : thundertray.pl tray
+  * option tray starts the application and creates an icon on the system tray
+  * you can call thundertray.pl , without any parameters, to toggle thunderbird as visible o tray, this is useful if you create a shortcut to call ./thundertray.pl and avodi having to click on the icon.
 * Tray Icon states
   * Thunderbird icon normal : No email, window is not minimized
   * Thunderbird icon dimmed : Thunderbird is minimized
@@ -52,7 +55,7 @@ cp thundertray.pl ~/MY_INSTALLATION_PATH
   * Thunderbird dimmed and red X : No email. Thunderbird is closed. To start again, click in Tray Icon.
 * If you quit the tray and want to restart, execute:
 ```
-./thundertray.pl &>/dev/null
+./thundertray.pl tray &>/dev/null
 ```
 * You may add that instruction to your Main menu so you can start it from there.
 
