@@ -13,6 +13,22 @@ use GD;
 our (%icon, $icon, $eventbox, $tray, $NEW, $DIR, $FONT, $FONT_PATH, $TBW, $OFFSET, $emailchk, $MSEC, $IGNORE_CLICK, $DEBUG, $SCAN_ALL, $IGNORE_BOXES);
 our ($LSTATUS, %KCOUNT, %LSTAT, @INBOX, $START, $TWB, $TWD);
 
+if (!$ARGV[0]) {
+    my ($map, $visible, $start);
+
+    my $TBW = findWindow();
+    $visible = `xwininfo -stats -id $TBW | grep 'Viewable'`;
+    if ($visible) {
+        system "xdotool windowunmap $TBW";
+    } else {
+        system "xdotool windowmap $TBW";
+        system "xdotool windowactivate $TBW";
+    }
+    exit 0;
+} elsif ($ARGV[0] ne 'tray') {
+    exit 0;
+}
+
 # Begin Constants: Edit if auto setup does not work for you
 $DIR          = "";                                                     #/home/MYUSER/.thunderbird/PROFILE.default;
 $FONT_PATH    = "";                                                     #/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf
@@ -349,6 +365,24 @@ sub setTBW {
     }
     # Wait for thunderbird to load email, before scanning
     return 0;
+}
+
+sub findWindow {
+    my ($TBW, $exit);
+
+    while (!$TBW) {
+        my $x = `xdotool search --name 'Mozilla Thunderbird'`;
+        chop $x;
+        my @wins = split /\n/, $x;
+        if ($wins[0]) {
+            return $wins[0];
+        } elsif ($exit > 60) {
+            # Could not be found, aborted
+            last;
+        }
+        $exit++;
+        select(undef, undef, undef, 0.25);
+    }
 }
 
 sub xdotool {
