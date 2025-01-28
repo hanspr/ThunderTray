@@ -39,9 +39,9 @@ cp thundertray.pl ~/MY_INSTALLATION_PATH
 **Recommendations**
 * Disable any active tray extension in Thunderbird.
 * Because application is not running inside Thunderbird, it has no control over the Close window Button. To minimize: click always on the Tray icon
-* Add to you start up applications, make sure you start it as : thundertray.pl tray
+* __Add to you start up applications__, make sure you start it as : `thundertray.pl tray`
   * option tray starts the application and creates an icon on the system tray
-  * you can call thundertray.pl , without any parameters, to toggle thunderbird as visible o tray, this is useful if you create a shortcut to call ./thundertray.pl and avodi having to click on the icon.
+  * you can call thundertray.pl , without any parameters, to toggle thunderbird as visible o tray, this is useful if you create a global shortcut to call ./thundertray.pl and avodi having to click on the icon.
 * Tray Icon states
   * Thunderbird icon normal : No email, window is not minimized
   * Thunderbird icon dimmed : Thunderbird is minimized
@@ -56,12 +56,16 @@ cp thundertray.pl ~/MY_INSTALLATION_PATH
 
 ## To test
 Inside the unpacked ThunderTray folder
-```
+```bash
+# test runs in the tray
+perl thundertray.pl tray
+
+# test that maps unmaps thunderbird on every call
 perl thundertray.pl
 ```
-When executed, thundertray will minimize to tray any existing Thunderbird Window.
+When executed with the "tray" option, thundertray will minimize to tray any existing Thunderbird Window.
 
-To show Thunderbird: click on Tray Icon
+To show Thunderbird: click on Tray Icon, or execute perl `thundertray.pl`
 
 Send emails to your email accounts, check email count on tray icon, read, delete messages.
 
